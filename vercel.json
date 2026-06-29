@@ -1,7 +1,1 @@
-{
-  "version": 2,
-  "rewrites": [
-    { "source": "/api/(.*)", "destination": "/api/server.ts" },
-    { "source": "/(.*)", "destination": "/$1" }
-  ]
-}
+{ "functions": { "api/**/*.ts": { "includeFiles": "node_modules/@rollup/rollup-linux-x64-gnu/**" } } }
