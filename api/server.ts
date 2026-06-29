@@ -2,7 +2,8 @@ import express from "express";
 import path from "path";
 import fs from "fs";
 import { createServer as createViteServer } from "vite";
-import { Match, Player, SoccerAppState } from "./src/types";
+import { Match, Player, SoccerAppState } from "../src/types";
+import { Redis } from "@upstash/redis";
 
 const app = express();
 const PORT = 3000;
@@ -10,8 +11,20 @@ const STATE_FILE_PATH = path.join(process.cwd(), "football_state.json");
 
 app.use(express.json());
 
-// In-memory fallback and initial state
-let state: SoccerAppState = {
+// Initialize Redis client if configuration exists
+let redis: Redis | null = null;
+if (process.env.UPSTASH_REDIS_REST_URL && process.env.UPSTASH_REDIS_REST_TOKEN) {
+  redis = new Redis({
+    url: process.env.UPSTASH_REDIS_REST_URL,
+    token: process.env.UPSTASH_REDIS_REST_TOKEN,
+  });
+  console.log("[State] Upstash Redis credentials found. Using Redis for storage.");
+} else {
+  console.log("[State] Upstash Redis credentials NOT found. Using local JSON file storage.");
+}
+
+// Fallback in-memory state
+let inMemoryState: SoccerAppState = {
   currentMatch: null,
   history: []
 };
@@ -50,50 +63,64 @@ function seedDefaultMatch(): Match {
   };
 }
 
-// Read state from disk
-function loadState() {
+// Read state dynamically
+async function getLatestState(): Promise<SoccerAppState> {
+  if (redis) {
+    try {
+      const data = await redis.get<SoccerAppState>("football_state");
+      if (data) {
+        return {
+          currentMatch: data.currentMatch || seedDefaultMatch(),
+          history: data.history || []
+        };
+      }
+    } catch (err) {
+      console.error("[State] Error loading state from Redis:", err);
+    }
+  }
+
+  // Local file fallback
   try {
     if (fs.existsSync(STATE_FILE_PATH)) {
       const rawData = fs.readFileSync(STATE_FILE_PATH, "utf-8");
       const parsed = JSON.parse(rawData);
-      state = {
+      return {
         currentMatch: parsed.currentMatch || seedDefaultMatch(),
         history: parsed.history || []
       };
-      console.log("[State] Successfully loaded football state from disk.");
-    } else {
-      state = {
-        currentMatch: seedDefaultMatch(),
-        history: []
-      };
-      saveState();
-      console.log("[State] Seeded and saved initial football state.");
     }
   } catch (err) {
-    console.error("[State] Error loading state:", err);
-    state = {
-      currentMatch: seedDefaultMatch(),
-      history: []
-    };
+    console.error("[State] Error loading state from disk:", err);
   }
+
+  // Fallback to in-memory/default
+  const defaultState = {
+    currentMatch: seedDefaultMatch(),
+    history: []
+  };
+  await persistState(defaultState);
+  return defaultState;
 }
 
-// Write state to disk
-function saveState() {
+// Write state dynamically
+async function persistState(newState: SoccerAppState): Promise<void> {
+  inMemoryState = newState;
+  
+  if (redis) {
+    try {
+      await redis.set("football_state", newState);
+      return;
+    } catch (err) {
+      console.error("[State] Error saving state to Redis:", err);
+    }
+  }
+
+  // Local file fallback
   try {
-    fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(state, null, 2), "utf-8");
+    fs.writeFileSync(STATE_FILE_PATH, JSON.stringify(newState, null, 2), "utf-8");
   } catch (err) {
-    console.error("[State] Error saving state:", err);
+    console.error("[State] Error saving state to disk:", err);
   }
-}
-
-// Helper to determine when soccer match ends
-function getMatchEndDateTime(dateStr: string, timeStr: string): Date {
-  const [year, month, day] = dateStr.split("-").map(Number);
-  const [hours, minutes] = timeStr.split(":").map(Number);
-  const start = new Date(year, month - 1, day, hours, minutes);
-  // Matches last 2 hours (120 minutes)
-  return new Date(start.getTime() + 2 * 60 * 60 * 1000);
 }
 
 // Calculate the match date for the following week
@@ -108,25 +135,17 @@ function getNextWeekDateStr(dateStr: string): string {
   return `${y}-${m}-${d}`;
 }
 
-// Check if current match has past and we can transition to a new one weekly
-function checkAndApplyWeeklyRollover() {
-  // Automatic rollover disabled by request. Rollover now happens manually via /api/football/match/complete
-}
-
-// Initialize state
-loadState();
-
 // Express API endpoints
 
-// Get active match and history. (Triggers check of auto weekly rollover)
-app.get("/api/football/match", (req, res) => {
-  checkAndApplyWeeklyRollover();
+// Get active match and history
+app.get("/api/football/match", async (req, res) => {
+  const state = await getLatestState();
   res.json(state);
 });
 
 // Configure existing match size (5v5=10 vs 6v6=12)
-app.post("/api/football/match/config", (req, res) => {
-  checkAndApplyWeeklyRollover();
+app.post("/api/football/match/config", async (req, res) => {
+  const state = await getLatestState();
   const { maxPlayers } = req.body;
   
   if (state.currentMatch) {
@@ -142,7 +161,7 @@ app.post("/api/football/match/config", (req, res) => {
         });
       }
 
-      saveState();
+      await persistState(state);
       res.json({ success: true, match: state.currentMatch });
     } else {
       res.status(400).json({ error: "El límite de jugadores debe ser 10 (5v5) o 12 (6v6)" });
@@ -153,8 +172,8 @@ app.post("/api/football/match/config", (req, res) => {
 });
 
 // Sign up a player
-app.post("/api/football/match/signup", (req, res) => {
-  checkAndApplyWeeklyRollover();
+app.post("/api/football/match/signup", async (req, res) => {
+  const state = await getLatestState();
   const { name } = req.body;
   
   if (!name || typeof name !== "string" || name.trim().length === 0) {
@@ -164,8 +183,7 @@ app.post("/api/football/match/signup", (req, res) => {
   if (!state.currentMatch) {
     return res.status(404).json({ error: "No hay partido activo para registrarse." });
   }
-
-  // Prevent duplicate names in current match
+  
   const trimmedName = name.trim();
   const alreadySignedUp = state.currentMatch.players.some(
     p => p.name.toLowerCase() === trimmedName.toLowerCase()
@@ -183,14 +201,14 @@ app.post("/api/football/match/signup", (req, res) => {
   };
 
   state.currentMatch.players.push(newPlayer);
-  saveState();
+  await persistState(state);
   
   res.json({ success: true, match: state.currentMatch });
 });
 
 // Remove/Sign out a player
-app.post("/api/football/match/signout", (req, res) => {
-  checkAndApplyWeeklyRollover();
+app.post("/api/football/match/signout", async (req, res) => {
+  const state = await getLatestState();
   const { playerId } = req.body;
   
   if (!playerId) {
@@ -208,12 +226,13 @@ app.post("/api/football/match/signout", (req, res) => {
     return res.status(404).json({ error: "Jugador no encontrado." });
   }
   
-  saveState();
+  await persistState(state);
   res.json({ success: true, match: state.currentMatch });
 });
 
 // Create/schedule a brand new match manually
-app.post("/api/football/match/new", (req, res) => {
+app.post("/api/football/match/new", async (req, res) => {
+  const state = await getLatestState();
   const { date, time, location, maxPlayers, title, subtitle, avatarUrl } = req.body;
   
   if (!date || !time || !location || !maxPlayers) {
@@ -222,7 +241,6 @@ app.post("/api/football/match/new", (req, res) => {
 
   // If there is an existing match, move it to history
   if (state.currentMatch) {
-    // Only archive if it has some players, otherwise just ignore to keep history clean
     if (state.currentMatch.players.length > 0) {
       state.history.unshift({ ...state.currentMatch, isCompleted: true });
     }
@@ -246,12 +264,13 @@ app.post("/api/football/match/new", (req, res) => {
     state.history = state.history.slice(0, 25);
   }
 
-  saveState();
+  await persistState(state);
   res.json({ success: true, match: state.currentMatch });
 });
 
 // Edit active match details
-app.post("/api/football/match/edit", (req, res) => {
+app.post("/api/football/match/edit", async (req, res) => {
+  const state = await getLatestState();
   const { date, time, location, maxPlayers, title, subtitle, avatarUrl } = req.body;
   
   if (!state.currentMatch) {
@@ -272,8 +291,6 @@ app.post("/api/football/match/edit", (req, res) => {
   state.currentMatch.subtitle = subtitle || undefined;
   state.currentMatch.avatarUrl = avatarUrl || undefined;
 
-  // If we shrunk the maxPlayers limit (e.g. 12 -> 10), any player beyond the new limit is now a reserve.
-  // Clean up team assignments for reserves to avoid inconsistencies.
   if (state.currentMatch.players.length > parsedMaxPlayers) {
     state.currentMatch.players.forEach((p, idx) => {
       if (idx >= parsedMaxPlayers) {
@@ -282,12 +299,13 @@ app.post("/api/football/match/edit", (req, res) => {
     });
   }
 
-  saveState();
+  await persistState(state);
   res.json({ success: true, match: state.currentMatch });
 });
 
 // Cancel active match
-app.post("/api/football/match/cancel", (req, res) => {
+app.post("/api/football/match/cancel", async (req, res) => {
+  const state = await getLatestState();
   const { reason } = req.body;
 
   if (!state.currentMatch) {
@@ -297,12 +315,13 @@ app.post("/api/football/match/cancel", (req, res) => {
   state.currentMatch.isCanceled = true;
   state.currentMatch.cancellationReason = reason || "Cancelado por el organizador";
   
-  saveState();
+  await persistState(state);
   res.json({ success: true, match: state.currentMatch });
 });
 
 // Restore active match from cancel state
-app.post("/api/football/match/restore", (req, res) => {
+app.post("/api/football/match/restore", async (req, res) => {
+  const state = await getLatestState();
   if (!state.currentMatch) {
     return res.status(404).json({ error: "No hay partido activo para restaurar." });
   }
@@ -310,12 +329,13 @@ app.post("/api/football/match/restore", (req, res) => {
   state.currentMatch.isCanceled = false;
   delete state.currentMatch.cancellationReason;
 
-  saveState();
+  await persistState(state);
   res.json({ success: true, match: state.currentMatch });
 });
 
 // Mark match as played, archive it, and schedule next match +7 days
-app.post("/api/football/match/complete", (req, res) => {
+app.post("/api/football/match/complete", async (req, res) => {
+  const state = await getLatestState();
   if (!state.currentMatch) {
     return res.status(404).json({ error: "No hay partido activo para finalizar." });
   }
@@ -345,13 +365,13 @@ app.post("/api/football/match/complete", (req, res) => {
     state.history = state.history.slice(0, 25);
   }
 
-  saveState();
+  await persistState(state);
   res.json({ success: true, match: state.currentMatch, history: state.history });
 });
 
 // Toggle player confirmation status
-app.post("/api/football/match/confirm", (req, res) => {
-  checkAndApplyWeeklyRollover();
+app.post("/api/football/match/confirm", async (req, res) => {
+  const state = await getLatestState();
   const { playerId, isConfirmed } = req.body;
 
   if (!playerId) {
@@ -368,14 +388,14 @@ app.post("/api/football/match/confirm", (req, res) => {
   }
 
   player.isConfirmed = Boolean(isConfirmed);
-  saveState();
+  await persistState(state);
 
   res.json({ success: true, match: state.currentMatch });
 });
 
 // Assign player to manual team (A or B)
-app.post("/api/football/match/team", (req, res) => {
-  checkAndApplyWeeklyRollover();
+app.post("/api/football/match/team", async (req, res) => {
+  const state = await getLatestState();
   const { playerId, team } = req.body;
 
   if (!playerId) {
@@ -397,7 +417,7 @@ app.post("/api/football/match/team", (req, res) => {
     } else {
       delete player.team;
     }
-    saveState();
+    await persistState(state);
     res.json({ success: true, match: state.currentMatch });
   } else {
     res.status(400).json({ error: "El equipo debe ser 'A', 'B' o null." });
@@ -405,8 +425,8 @@ app.post("/api/football/match/team", (req, res) => {
 });
 
 // Randomize or shuffle teams of current match (for main players)
-app.post("/api/football/match/teams/randomize", (req, res) => {
-  checkAndApplyWeeklyRollover();
+app.post("/api/football/match/teams/randomize", async (req, res) => {
+  const state = await getLatestState();
   if (!state.currentMatch) {
     return res.status(404).json({ error: "El partido no existe." });
   }
@@ -422,13 +442,13 @@ app.post("/api/football/match/teams/randomize", (req, res) => {
     p.team = index < half ? "A" : "B";
   });
 
-  saveState();
+  await persistState(state);
   res.json({ success: true, match: state.currentMatch });
 });
 
 // Reset manual teams to auto alternation
-app.post("/api/football/match/teams/reset", (req, res) => {
-  checkAndApplyWeeklyRollover();
+app.post("/api/football/match/teams/reset", async (req, res) => {
+  const state = await getLatestState();
   if (!state.currentMatch) {
     return res.status(404).json({ error: "El partido no existe." });
   }
@@ -437,7 +457,7 @@ app.post("/api/football/match/teams/reset", (req, res) => {
     delete p.team;
   });
 
-  saveState();
+  await persistState(state);
   res.json({ success: true, match: state.currentMatch });
 });
 
@@ -462,4 +482,9 @@ async function startServer() {
   });
 }
 
-startServer();
+// Export app for Vercel Serverless Function
+export default app;
+
+if (!process.env.VERCEL) {
+  startServer();
+}
