@@ -1,0 +1,26 @@
+{
+  "currentMatch": {
+    "id": "match_q0kk8lx",
+    "date": "2026-06-29",
+    "time": "21:00",
+    "location": "Pg. de Salvat Papasseit, 11, Ciutat Vella, 08003 Barcelona",
+    "maxPlayers": 12,
+    "players": [
+      {
+        "id": "player_mf81xhf",
+        "name": "vasek",
+        "signedUpAt": "2026-06-29T14:34:31.665Z",
+        "isConfirmed": false
+      },
+      {
+        "id": "player_gt5t21v",
+        "name": "lode",
+        "signedUpAt": "2026-06-29T14:35:45.908Z",
+        "isConfirmed": false
+      }
+    ],
+    "isCompleted": false,
+    "createdAt": "2026-06-24T14:41:00.977Z"
+  },
+  "history": []
+}
