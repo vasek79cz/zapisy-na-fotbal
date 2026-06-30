@@ -17,6 +17,12 @@
         "name": "lode",
         "signedUpAt": "2026-06-29T14:35:45.908Z",
         "isConfirmed": false
+      },
+      {
+        "id": "player_w5n8tpy",
+        "name": "petr",
+        "signedUpAt": "2026-06-30T10:10:04.210Z",
+        "isConfirmed": false
       }
     ],
     "isCompleted": false,

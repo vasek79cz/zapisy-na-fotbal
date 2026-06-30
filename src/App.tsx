@@ -1,20 +1,19 @@
 import React, { useState, useEffect } from "react";
-import { 
-  Users, 
-  MapPin, 
-  Calendar, 
-  Clock, 
-  Plus, 
-  Trash2, 
-  RotateCw, 
-  Sliders, 
-  Sparkles, 
-  History, 
-  CheckCircle, 
+import {
+  Users,
+  MapPin,
+  Calendar,
+  Clock,
+  Plus,
+  Trash2,
+  RotateCw,
+  Sliders,
+  Sparkles,
+  History,
+  CheckCircle,
   HelpCircle,
   X,
   UserCheck,
-  Check,
   CalendarCheck
 } from "lucide-react";
 import { motion, AnimatePresence } from "motion/react";
@@ -27,7 +26,7 @@ export default function App() {
     currentMatch: null,
     history: []
   });
-  
+
   // User local profile config
   const [savedName, setSavedName] = useState<string>(() => {
     return localStorage.getItem("football_player_name") || "";
@@ -59,12 +58,12 @@ export default function App() {
     localStorage.removeItem("football_is_admin");
     alert("Sesión de Organizador cerrada.");
   };
-  
+
   // Inputs
   const [signupName, setSignupName] = useState<string>("");
   const [showConfigModal, setShowConfigModal] = useState<boolean>(false);
   const [showHistoryModal, setShowHistoryModal] = useState<boolean>(false);
-  
+
   // New Match Form Inputs
   const [newDate, setNewDate] = useState<string>("");
   const [newTime, setNewTime] = useState<string>("18:00");
@@ -92,7 +91,7 @@ export default function App() {
     }
   };
 
-  // Whenever the configuration modal opens, pre-fill inputs with current match details if we want to edit
+  // Pre-fill inputs with current match details when configuration modal opens
   useEffect(() => {
     if (showConfigModal) {
       if (state.currentMatch) {
@@ -115,20 +114,20 @@ export default function App() {
         setAdminTab('new');
       }
     }
-  }, [showConfigModal]);
-  
+  }, [showConfigModal, state.currentMatch]);
+
   // Confetti / Celebration Trigger
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
 
   // Drag and Drop State for manual teams
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
 
-  // Helper for making robust API requests with clean content-type checks and helpful error messages
+  // Helper for making robust API requests
   const safeFetchJson = async (url: string, options?: RequestInit) => {
     try {
       const res = await fetch(url, options);
       const contentType = res.headers.get("content-type");
-      
+
       if (!res.ok) {
         if (contentType && contentType.includes("application/json")) {
           const errorData = await res.json();
@@ -137,11 +136,11 @@ export default function App() {
           throw new Error(`El servidor respondió con un error (${res.status}). Es posible que se esté iniciando o reiniciando.`);
         }
       }
-      
+
       if (!contentType || !contentType.includes("application/json")) {
         throw new Error("La respuesta del servidor no es un JSON válido. Reintente en unos instantes.");
       }
-      
+
       return await res.json();
     } catch (err: any) {
       if (err.message && err.message.includes("Failed to fetch")) {
@@ -160,7 +159,7 @@ export default function App() {
       setError(null);
     } catch (err: any) {
       console.error(err);
-      setError(err.message || "Nepodařilo se připojit k serveru.");
+      setError(err.message || "No se pudo conectar con el servidor.");
     } finally {
       if (!silent) setLoading(false);
     }
@@ -181,7 +180,6 @@ export default function App() {
       const totalPlayersCount = state.currentMatch.players.length;
       const limit = state.currentMatch.maxPlayers;
       if (totalPlayersCount === limit && totalPlayersCount > 0) {
-        // Just reached the exact limit! Let's celebrate.
         setShowCelebration(true);
         const timer = setTimeout(() => setShowCelebration(false), 5000);
         return () => clearTimeout(timer);
@@ -193,8 +191,7 @@ export default function App() {
   const handleSignUp = async (nameToRegister: string) => {
     const trimmed = nameToRegister.trim();
     if (!trimmed) return;
-    
-    // Save name to local storage for quick access next time
+
     localStorage.setItem("football_player_name", trimmed);
     setSavedName(trimmed);
 
@@ -207,7 +204,7 @@ export default function App() {
       });
       setState(prev => ({ ...prev, currentMatch: data.match }));
       setSignupName("");
-      if (navigator.vibrate) navigator.vibrate([100, 50, 100]); // satisfying haptic vibrate if supported
+      if (navigator.vibrate) navigator.vibrate([100, 50, 100]);
     } catch (err: any) {
       alert(err.message || "Error al registrarse.");
     } finally {
@@ -220,7 +217,6 @@ export default function App() {
     const playerToRemove = state.currentMatch?.players.find(p => p.id === playerId);
     if (!playerToRemove) return;
 
-    // Only allow self sign-out or admin sign-out of others
     const isSelf = savedName && playerToRemove.name.trim().toLowerCase() === savedName.trim().toLowerCase();
     if (!isSelf && !isAdmin) {
       const pass = prompt("Introduzca la contraseña de Organizador para dar de baja a otro jugador:");
@@ -233,7 +229,7 @@ export default function App() {
     }
 
     if (!confirm(`¿De verdad quieres dar de baja a ${playerToRemove.name}?`)) return;
-    
+
     try {
       setLoading(true);
       const data = await safeFetchJson("/api/football/match/signout", {
@@ -250,11 +246,10 @@ export default function App() {
   };
 
   // Handle Player Confirmation Toggle
-  const handleToggleConfirmet = async (playerId: string, currentStatus: boolean) => {
+  const handleToggleConfirmed = async (playerId: string, currentStatus: boolean) => {
     const playerToToggle = state.currentMatch?.players.find(p => p.id === playerId);
     if (!playerToToggle) return;
 
-    // Only allow self confirmation or admin confirmation of others
     const isSelf = savedName && playerToToggle.name.trim().toLowerCase() === savedName.trim().toLowerCase();
     if (!isSelf && !isAdmin) {
       const pass = prompt("Introduzca la contraseña de Organizador para modificar la asistencia de otro jugador:");
@@ -382,9 +377,9 @@ export default function App() {
 
       setState(prev => {
         const updatedHistory = prev.currentMatch && prev.currentMatch.players.length > 0
-          ? [ { ...prev.currentMatch, isCompleted: true }, ...prev.history ]
+          ? [{ ...prev.currentMatch, isCompleted: true }, ...prev.history]
           : prev.history;
-        
+
         return {
           currentMatch: data.match,
           history: updatedHistory.slice(0, 25)
@@ -494,7 +489,6 @@ export default function App() {
         history: data.history
       }));
 
-      // Update configuration input values to match the new schedule
       if (data.match) {
         setNewDate(data.match.date);
         setNewTime(data.match.time);
@@ -522,8 +516,7 @@ export default function App() {
       const matchTime = new Date(year, month - 1, day, hours, minutes);
       const now = new Date();
       const diffMs = matchTime.getTime() - now.getTime();
-      
-      // Eligibility opens 48 hours prior to starting, and stays open until the match is finished (e.g. 2 hours after kick-off)
+
       const limits = 48 * 60 * 60 * 1000;
       return diffMs <= limits && diffMs > -2 * 60 * 60 * 1000;
     } catch (e) {
@@ -537,17 +530,17 @@ export default function App() {
       const parts = dateStr.split("-").map(Number);
       if (parts.length !== 3) return dateStr;
       const dateObj = new Date(parts[0], parts[1] - 1, parts[2]);
-      
+
       const weekdays = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
       const months = [
         "enero", "febrero", "marzo", "abril", "mayo", "junio",
         "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre"
       ];
-      
+
       const dayName = weekdays[dateObj.getDay()];
       const dayNum = dateObj.getDate();
       const monthName = months[dateObj.getMonth()];
-      
+
       return `${dayName}, ${dayNum} de ${monthName}`;
     } catch (e) {
       return dateStr;
@@ -558,14 +551,12 @@ export default function App() {
   const maxPlayers = currentMatch?.maxPlayers || 10;
   const is6v6 = maxPlayers === 12;
 
-  // Split players into main lineup and reserves
   const allRegistered = currentMatch?.players || [];
   const mainPlayersLimit = maxPlayers;
-  
+
   const mainPlayers = allRegistered.slice(0, mainPlayersLimit);
   const reserves = allRegistered.slice(mainPlayersLimit);
 
-  // Split main players into two local teams for balance representation:
   const assignedTeamA = mainPlayers.filter(p => p.team === "A");
   const assignedTeamB = mainPlayers.filter(p => p.team === "B");
   const unassigned = mainPlayers.filter(p => !p.team);
@@ -576,7 +567,6 @@ export default function App() {
   const maxTeamSize = Math.floor(maxPlayers / 2);
   unassigned.forEach((p, idx) => {
     if (teamAPlayers.length < maxTeamSize && teamBPlayers.length < maxTeamSize) {
-      // Alternate defaults if not assigned
       if (idx % 2 === 0) {
         teamAPlayers.push(p);
       } else {
@@ -599,14 +589,10 @@ export default function App() {
     if (idx < teamRed.length) teamRed[idx] = p;
   });
 
-  // Calculate percentage filled
   const spotsLeft = Math.max(0, maxPlayers - mainPlayers.length);
   const percentage = Math.min(100, Math.floor((mainPlayers.length / maxPlayers) * 100));
 
-  // Determine if confirmation window is open
   const canConfirmNow = currentMatch ? isWithin48HoursOfMatch(currentMatch.date, currentMatch.time) : false;
-
-  // Check if lineup is full and everyone is confirmed (i.e. green)
   const isEveryoneConfirmed = mainPlayers.length === maxPlayers && mainPlayers.length > 0 && mainPlayers.every(p => p.isConfirmed);
 
   // Auto set initial date state when opening config to upcoming Wednesday
@@ -619,18 +605,13 @@ export default function App() {
       const d = String(wed.getDate()).padStart(2, "0");
       setNewDate(`${y}-${m}-${d}`);
     }
-  }, []);
+  }, [newDate]);
 
   return (
     <div id="full-app-container" className="min-h-screen bg-slate-900 text-slate-100 flex flex-col items-center pb-12 font-sans overflow-x-hidden antialiased">
-      
-      {/* Visual background soccer fields ambiance */}
       <div className="absolute top-0 left-0 right-0 h-48 bg-gradient-to-b from-emerald-950/40 to-slate-900 pointer-events-none z-0" />
 
-      {/* Main Container Layer */}
       <div className="w-full max-w-md px-4 pt-4 z-10 flex flex-col gap-4">
-        
-        {/* Sleek App Brand Header */}
         <header className="flex justify-between items-center py-2" id="header-brand">
           <div className="flex items-center gap-2">
             <div className="bg-slate-950 text-emerald-400 p-0 rounded-xl shadow-lg ring-4 ring-emerald-500/10 w-10 h-10 flex items-center justify-center overflow-hidden border border-slate-800">
@@ -662,7 +643,7 @@ export default function App() {
             >
               <History size={18} />
             </button>
-            
+
             <button
               id="btn-settings-trigger"
               onClick={() => setShowConfigModal(true)}
@@ -674,7 +655,6 @@ export default function App() {
           </div>
         </header>
 
-        {/* Organizer Status / Admin Session Bar */}
         <div className="flex justify-between items-center bg-slate-950/40 p-2.5 rounded-2xl border border-slate-800 text-xs gap-3">
           <div className="flex items-center gap-1.5 min-w-0">
             <span className={`w-2 h-2 rounded-full flex-shrink-0 ${isAdmin ? "bg-emerald-400 animate-pulse" : "bg-slate-600"}`} />
@@ -708,7 +688,6 @@ export default function App() {
           )}
         </div>
 
-        {/* Global Error Banner */}
         {error && (
           <div className="bg-rose-500/10 border border-rose-500/30 rounded-2xl p-4 flex gap-3 text-sm text-rose-300 animate-pulse" id="error-banner">
             <div className="font-bold">⚠️</div>
@@ -716,7 +695,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Celebration Banner when Full */}
         <AnimatePresence>
           {showCelebration && (
             <motion.div
@@ -739,7 +717,6 @@ export default function App() {
           )}
         </AnimatePresence>
 
-        {/* Active Match Card */}
         {loading && !currentMatch ? (
           <div className="bg-slate-800/40 border border-slate-800 rounded-3xl p-12 flex flex-col items-center justify-center gap-3">
             <RotateCw size={32} className="animate-spin text-emerald-400" />
@@ -765,37 +742,32 @@ export default function App() {
           </div>
         ) : (
           <div className="flex flex-col gap-4">
-            {/* MATCH SPECIFICS HEADER INFO */}
             <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-5 shadow-xl relative overflow-hidden" id="match-info-card">
               <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full filter blur-xl" />
-              
+
               <div className="flex items-center justify-between mb-4">
-                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border flex items-center gap-1 ${
-                  currentMatch.isCanceled 
-                    ? "text-rose-400 bg-rose-500/10 border-rose-500/20" 
-                    : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
-                }`}>
+                <span className={`text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full border flex items-center gap-1 ${currentMatch.isCanceled
+                  ? "text-rose-400 bg-rose-500/10 border-rose-500/20"
+                  : "text-emerald-400 bg-emerald-500/10 border-emerald-500/20"
+                  }`}>
                   <span className={`w-1.5 h-1.5 rounded-full ${currentMatch.isCanceled ? "bg-rose-400 animate-pulse" : "bg-emerald-400 animate-pulse"}`} />
                   {currentMatch.isCanceled ? "PARTIDO SUSPENDIDO" : "Próximo Encuentro"}
                 </span>
-                
-                {/* 5v5 vs 6v6 Segmented Control */}
+
                 <div className="flex items-center bg-slate-900 border border-slate-700/60 p-0.5 rounded-xl text-xs font-semibold" id="toggle-slots-container">
                   <button
                     disabled={currentMatch.isCanceled}
                     onClick={() => handleToggleConfig(10)}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      !is6v6 ? "bg-emerald-500 text-slate-950 font-extrabold" : "text-slate-400 hover:text-slate-200"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${!is6v6 ? "bg-emerald-500 text-slate-950 font-extrabold" : "text-slate-400 hover:text-slate-200"
+                      }`}
                   >
                     5 vs 5
                   </button>
                   <button
                     disabled={currentMatch.isCanceled}
                     onClick={() => handleToggleConfig(12)}
-                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
-                      is6v6 ? "bg-emerald-500 text-slate-950 font-extrabold" : "text-slate-400 hover:text-slate-200"
-                    }`}
+                    className={`px-3 py-1.5 rounded-lg transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${is6v6 ? "bg-emerald-500 text-slate-950 font-extrabold" : "text-slate-400 hover:text-slate-200"
+                      }`}
                   >
                     6 vs 6
                   </button>
@@ -834,7 +806,7 @@ export default function App() {
                   </div>
                   <div className="min-w-0 flex-1">
                     <p className="text-xs text-slate-400">Lugar del encuentro</p>
-                    <a 
+                    <a
                       href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(currentMatch.location)}`}
                       target="_blank"
                       rel="noopener noreferrer"
@@ -864,7 +836,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Organizer Controls bar directly on the card */}
               <div className="mt-4 pt-3 border-t border-slate-700/50 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 bg-slate-900/40 p-3 rounded-2xl border border-slate-800">
                 <span className="text-[10px] text-slate-400 font-bold uppercase tracking-wider">🛠️ Panel de Organizador:</span>
                 <div className="flex gap-2 w-full sm:w-auto">
@@ -891,7 +862,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Progress Bar of full slotting */}
               <div className="mt-4 pt-3 border-t border-slate-700/50">
                 <div className="flex justify-between items-center text-xs mb-1.5">
                   <span className="text-slate-400">Aforo registrado:</span>
@@ -900,25 +870,24 @@ export default function App() {
                   </span>
                 </div>
                 <div className="w-full bg-slate-900 rounded-full h-2.5 overflow-hidden border border-slate-800">
-                  <div 
+                  <div
                     className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full rounded-full transition-all duration-500"
                     style={{ width: `${percentage}%` }}
                   />
                 </div>
-                
+
                 <div className="flex justify-between items-center text-[10px] text-slate-400 mt-2">
                   <span>{spotsLeft > 0 ? `Cupos disponibles: ${spotsLeft}` : "❗ Plazas principales agotadas"}</span>
                 </div>
               </div>
             </div>
 
-            {/* ATTENDANCE CONFIRMATION ALERT BAR SYSTEM */}
             <div className="bg-slate-800/90 border border-slate-700/85 rounded-3xl p-4 shadow-xl">
               <div className="flex items-center gap-2 mb-2">
                 <CalendarCheck size={18} className="text-emerald-400" />
                 <h4 className="text-sm font-bold text-white">Confirmación de Asistencia</h4>
               </div>
-              
+
               {canConfirmNow ? (
                 <div className="p-3 bg-emerald-500/10 border border-emerald-500/25 rounded-2xl">
                   <p className="text-xs text-emerald-300 leading-relaxed font-semibold">
@@ -940,13 +909,12 @@ export default function App() {
               )}
             </div>
 
-            {/* QUICK REGISTER PANEL */}
             <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-5 shadow-xl flex flex-col gap-3" id="signup-panel">
               <h4 className="font-bold text-sm text-slate-200 flex items-center gap-1.5">
                 <Users size={16} className="text-emerald-400" />
                 Inscribirse al partido
               </h4>
-              
+
               {currentMatch.isCanceled ? (
                 <div className="bg-rose-500/10 border border-rose-500/25 p-3.5 rounded-2xl text-xs font-semibold text-rose-300 leading-relaxed">
                   🚫 No se admiten inscripciones ni bajas porque el partido semanal se encuentra actualmente **suspendido**.
@@ -973,7 +941,6 @@ export default function App() {
                     </button>
                   </div>
 
-                  {/* Quick saved player button */}
                   {savedName && (
                     <div className="flex items-center justify-between mt-1 bg-slate-900/50 rounded-xl px-3 py-2 border border-slate-800">
                       <span className="text-xs text-slate-400 flex items-center gap-1">
@@ -992,7 +959,6 @@ export default function App() {
               )}
             </div>
 
-            {/* MATCH SOCCER FIELD VISUALIZATION */}
             <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-4 shadow-xl flex flex-col gap-3" id="soccer-pitch-card">
               <div className="flex justify-between items-center border-b border-slate-700/50 pb-2.5">
                 <h4 className="font-bold text-sm text-slate-200">
@@ -1001,184 +967,160 @@ export default function App() {
                 <span className="text-[10px] text-slate-400 font-medium">Claras vs. Oscuras</span>
               </div>
 
-              {/* Graphic Green Soccer Field Container */}
               <div className="relative aspect-[1/1.45] w-full max-w-[440px] mx-auto min-h-[520px] sm:min-h-[580px] bg-gradient-to-b from-emerald-600 to-emerald-800 rounded-2xl border-2 border-emerald-500 shadow-inner overflow-hidden p-2 sm:p-4 flex flex-col justify-between" id="soccer-pitch-field">
-                
-                {/* Grass stripes effect */}
                 <div className="absolute inset-0 flex flex-col pointer-events-none opacity-10">
                   {Array(8).fill(null).map((_, i) => (
                     <div key={i} className={`flex-1 ${i % 2 === 0 ? "bg-black" : "bg-transparent"}`} />
                   ))}
                 </div>
 
-                {/* Field markings */}
                 <div className="absolute inset-x-0 inset-y-0 border border-white/40 pointer-events-none rounded-xl m-1" />
-                
-                {/* Center line (horizontal divide) */}
                 <div className="absolute inset-x-0 top-1/2 h-[1px] bg-white/40 pointer-events-none" />
-                
-                {/* Center circle & center spot */}
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-14 sm:w-16 h-14 sm:h-16 rounded-full border border-white/40 pointer-events-none" />
                 <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-1.5 sm:w-2 h-1.5 sm:h-2 rounded-full bg-white/50 pointer-events-none" />
-                
-                {/* Penalty areas */}
-                {/* Top Penalty Area */}
+
                 <div className="absolute top-1 inset-x-[18%] h-10 sm:h-12 border-b border-x border-white/40 pointer-events-none" />
-                {/* Bottom Penalty Area */}
                 <div className="absolute bottom-1 inset-x-[18%] h-10 sm:h-12 border-t border-x border-white/40 pointer-events-none" />
 
-                {/* Goals */}
-                {/* Top Goal Net */}
                 <div className="absolute top-[2px] left-1/2 -translate-x-1/2 w-16 h-2 border-b border-x border-white/60 bg-emerald-900/50 pointer-events-none rounded-b" />
-                {/* Bottom Goal Net */}
                 <div className="absolute bottom-[2px] left-1/2 -translate-x-1/2 w-16 h-2 border-t border-x border-white/60 bg-emerald-900/50 pointer-events-none rounded-t" />
 
                 <div className="relative w-full h-full flex flex-col justify-between z-10 py-1 sm:py-2">
-                  
-                  {/* TOP SIDE: Team Blue (Claros) */}
                   <div className="flex-1 flex flex-col justify-around py-1">
-                    {/* Row 1: GK & Defenders (near top goal) */}
                     <div className="flex flex-row justify-around items-center w-full px-1">
-                      <PlayerBubble 
-                        player={teamBlue[1]} 
-                        slotNum={3} 
-                        teamColor="blue" 
+                      <PlayerBubble
+                        player={teamBlue[1]}
+                        slotNum={3}
+                        teamColor="blue"
                         onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                        onLeave={handleSignOut} 
+                        onLeave={handleSignOut}
                       />
-                      <PlayerBubble 
-                        player={teamBlue[0]} 
-                        slotNum={1} 
-                        teamColor="blue" 
+                      <PlayerBubble
+                        player={teamBlue[0]}
+                        slotNum={1}
+                        teamColor="blue"
                         onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                        onLeave={handleSignOut} 
+                        onLeave={handleSignOut}
                       />
-                      <PlayerBubble 
-                        player={teamBlue[2]} 
-                        slotNum={5} 
-                        teamColor="blue" 
+                      <PlayerBubble
+                        player={teamBlue[2]}
+                        slotNum={5}
+                        teamColor="blue"
                         onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                        onLeave={handleSignOut} 
+                        onLeave={handleSignOut}
                       />
                     </div>
 
-                    {/* Row 2: Midfielders / Forwards */}
                     <div className="flex flex-row justify-around items-center w-full px-4">
-                      <PlayerBubble 
-                        player={teamBlue[3]} 
-                        slotNum={7} 
-                        teamColor="blue" 
+                      <PlayerBubble
+                        player={teamBlue[3]}
+                        slotNum={7}
+                        teamColor="blue"
                         onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                        onLeave={handleSignOut} 
+                        onLeave={handleSignOut}
                       />
                       {is6v6 ? (
                         <>
-                          <PlayerBubble 
-                            player={teamBlue[4]} 
-                            slotNum={9} 
-                            teamColor="blue" 
+                          <PlayerBubble
+                            player={teamBlue[4]}
+                            slotNum={9}
+                            teamColor="blue"
                             onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                            onLeave={handleSignOut} 
+                            onLeave={handleSignOut}
                           />
-                          <PlayerBubble 
-                            player={teamBlue[5]} 
-                            slotNum={11} 
-                            teamColor="blue" 
+                          <PlayerBubble
+                            player={teamBlue[5]}
+                            slotNum={11}
+                            teamColor="blue"
                             onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                            onLeave={handleSignOut} 
+                            onLeave={handleSignOut}
                           />
                         </>
                       ) : (
-                        <PlayerBubble 
-                          player={teamBlue[4]} 
-                          slotNum={9} 
-                          teamColor="blue" 
+                        <PlayerBubble
+                          player={teamBlue[4]}
+                          slotNum={9}
+                          teamColor="blue"
                           onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                          onLeave={handleSignOut} 
+                          onLeave={handleSignOut}
                         />
                       )}
                     </div>
                   </div>
 
-                  {/* BOTTOM SIDE: Team Red (Oscuros) */}
                   <div className="flex-1 flex flex-col justify-around py-1">
-                    {/* Row 3: Midfielders / Forwards */}
                     <div className="flex flex-row justify-around items-center w-full px-4">
-                      <PlayerBubble 
-                        player={teamRed[3]} 
-                        slotNum={8} 
-                        teamColor="red" 
+                      <PlayerBubble
+                        player={teamRed[3]}
+                        slotNum={8}
+                        teamColor="red"
                         onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                        onLeave={handleSignOut} 
+                        onLeave={handleSignOut}
                       />
                       {is6v6 ? (
                         <>
-                          <PlayerBubble 
-                            player={teamRed[4]} 
-                            slotNum={10} 
-                            teamColor="red" 
+                          <PlayerBubble
+                            player={teamRed[4]}
+                            slotNum={10}
+                            teamColor="red"
                             onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                            onLeave={handleSignOut} 
+                            onLeave={handleSignOut}
                           />
-                          <PlayerBubble 
-                            player={teamRed[5]} 
-                            slotNum={12} 
-                            teamColor="red" 
+                          <PlayerBubble
+                            player={teamRed[5]}
+                            slotNum={12}
+                            teamColor="red"
                             onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                            onLeave={handleSignOut} 
+                            onLeave={handleSignOut}
                           />
                         </>
                       ) : (
-                        <PlayerBubble 
-                          player={teamRed[4]} 
-                          slotNum={10} 
-                          teamColor="red" 
+                        <PlayerBubble
+                          player={teamRed[4]}
+                          slotNum={10}
+                          teamColor="red"
                           onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                          onLeave={handleSignOut} 
+                          onLeave={handleSignOut}
                         />
                       )}
                     </div>
 
-                    {/* Row 4: GK & Defenders (near bottom goal) */}
                     <div className="flex flex-row justify-around items-center w-full px-1">
-                      <PlayerBubble 
-                        player={teamRed[1]} 
-                        slotNum={4} 
-                        teamColor="red" 
+                      <PlayerBubble
+                        player={teamRed[1]}
+                        slotNum={4}
+                        teamColor="red"
                         onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                        onLeave={handleSignOut} 
+                        onLeave={handleSignOut}
                       />
-                      <PlayerBubble 
-                        player={teamRed[0]} 
-                        slotNum={2} 
-                        teamColor="red" 
+                      <PlayerBubble
+                        player={teamRed[0]}
+                        slotNum={2}
+                        teamColor="red"
                         onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                        onLeave={handleSignOut} 
+                        onLeave={handleSignOut}
                       />
-                      <PlayerBubble 
-                        player={teamRed[2]} 
-                        slotNum={6} 
-                        teamColor="red" 
+                      <PlayerBubble
+                        player={teamRed[2]}
+                        slotNum={6}
+                        teamColor="red"
                         onJoin={() => handleSignUp(savedName || prompt("Ingresa tu nombre:") || "")}
-                        onLeave={handleSignOut} 
+                        onLeave={handleSignOut}
                       />
                     </div>
                   </div>
-
                 </div>
 
-                {/* Small indicator tip */}
                 <div className="absolute bottom-1 right-1.5 text-[8.5px] text-white/50 bg-slate-950/40 px-1.5 py-0.5 rounded pointer-events-none">
                   Luminosidad: Verde = Confirmado, Azul = Registrado
                 </div>
               </div>
             </div>
 
-            {/* MANUAL TEAM REORGANIZER CONTROL ROOM */}
             {isEveryoneConfirmed && (
               <div className="bg-slate-800/90 border border-emerald-500/30 rounded-3xl p-5 shadow-xl flex flex-col gap-4 relative overflow-hidden" id="team-builder-card">
                 <div className="absolute top-0 right-0 w-24 h-24 bg-emerald-500/5 rounded-full filter blur-xl pointer-events-none" />
-                
+
                 <div className="flex flex-col gap-1.5 border-b border-slate-700/50 pb-3">
                   <div className="flex items-center justify-between">
                     <span className="text-[10px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-500/10 px-2.5 py-1 rounded-full border border-emerald-500/20 flex items-center gap-1.5">
@@ -1204,7 +1146,7 @@ export default function App() {
                       </div>
                     )}
                   </div>
-                  
+
                   <h4 className="font-extrabold text-sm text-white mt-1">
                     Distribución Manual de los Equipos
                   </h4>
@@ -1213,7 +1155,6 @@ export default function App() {
                   </p>
                 </div>
 
-                {/* Inline admin login / status banner */}
                 {!isAdmin ? (
                   <div className="bg-slate-900/80 border border-slate-800 p-3.5 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
                     <div className="flex items-center gap-2.5 self-start sm:self-auto">
@@ -1223,7 +1164,7 @@ export default function App() {
                         <p className="text-[10px] sm:text-[11px] text-slate-400 leading-tight">Debes iniciar sesión para editar, mezclar o arrastrar los equipos.</p>
                       </div>
                     </div>
-                    <form 
+                    <form
                       onSubmit={(e) => {
                         e.preventDefault();
                         const input = e.currentTarget.elements.namedItem("team_admin_pass") as HTMLInputElement;
@@ -1234,16 +1175,16 @@ export default function App() {
                         } else {
                           alert("Contraseña incorrecta. Inténtalo de nuevo.");
                         }
-                      }} 
+                      }}
                       className="flex items-center gap-1.5 w-full sm:w-auto"
                     >
-                      <input 
+                      <input
                         name="team_admin_pass"
                         type="password"
                         placeholder="Contraseña..."
                         className="flex-1 sm:w-36 px-3 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-emerald-500 text-white font-mono"
                       />
-                      <button 
+                      <button
                         type="submit"
                         className="px-3.5 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl transition-all cursor-pointer active:scale-95 whitespace-nowrap"
                       >
@@ -1257,7 +1198,7 @@ export default function App() {
                       <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
                       Sesión de Organizador Activa — Puedes arrastrar nombres o usar botones de control
                     </span>
-                    <button 
+                    <button
                       type="button"
                       onClick={() => {
                         setIsAdmin(false);
@@ -1270,11 +1211,8 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Two side-by-side dropping targets */}
                 <div className="grid grid-cols-2 gap-3.5">
-                  
-                  {/* COLUMN A: EQUIPO CLARO */}
-                  <div 
+                  <div
                     id="team-zone-a"
                     onDragOver={(e) => {
                       if (isAdmin) e.preventDefault();
@@ -1310,15 +1248,13 @@ export default function App() {
                             onDragStart={() => {
                               if (isAdmin) setDraggedPlayerId(p.id);
                             }}
-                            className={`bg-slate-800 border border-slate-700/60 p-2 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-between shadow-sm transition-all select-none ${
-                              isAdmin 
-                                ? "hover:bg-slate-750 cursor-grab active:cursor-grabbing hover:border-emerald-500/20" 
-                                : "cursor-default"
-                            }`}
+                            className={`bg-slate-800 border border-slate-700/60 p-2 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-between shadow-sm transition-all select-none ${isAdmin
+                              ? "hover:bg-slate-750 cursor-grab active:cursor-grabbing hover:border-emerald-500/20"
+                              : "cursor-default"
+                              }`}
                           >
                             <span className="truncate max-w-[90px]">{p.name.split(" ")[0]} {p.name.split(" ")[1]?.charAt(0) || ""}.</span>
-                            
-                            {/* Tap transfer option for mobile friendliness */}
+
                             {isAdmin && (
                               <button
                                 onClick={() => handleAssignPlayerTeam(p.id, "B")}
@@ -1334,8 +1270,7 @@ export default function App() {
                     )}
                   </div>
 
-                  {/* COLUMN B: EQUIPO OSCURO */}
-                  <div 
+                  <div
                     id="team-zone-b"
                     onDragOver={(e) => {
                       if (isAdmin) e.preventDefault();
@@ -1371,13 +1306,11 @@ export default function App() {
                             onDragStart={() => {
                               if (isAdmin) setDraggedPlayerId(p.id);
                             }}
-                            className={`bg-slate-800 border border-slate-700/60 p-2 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-between shadow-sm transition-all select-none ${
-                              isAdmin 
-                                ? "hover:bg-slate-750 cursor-grab active:cursor-grabbing hover:border-emerald-500/20" 
-                                : "cursor-default"
-                            }`}
+                            className={`bg-slate-800 border border-slate-700/60 p-2 rounded-xl text-xs font-bold text-slate-200 flex items-center justify-between shadow-sm transition-all select-none ${isAdmin
+                              ? "hover:bg-slate-750 cursor-grab active:cursor-grabbing hover:border-emerald-500/20"
+                              : "cursor-default"
+                              }`}
                           >
-                            {/* Tap transfer option for mobile friendliness */}
                             {isAdmin && (
                               <button
                                 onClick={() => handleAssignPlayerTeam(p.id, "A")}
@@ -1394,22 +1327,17 @@ export default function App() {
                       </div>
                     )}
                   </div>
-
                 </div>
 
-                {/* Touch/Drag hint */}
                 <p className="text-[10px] text-center text-slate-500">
-                  {isAdmin 
-                    ? "💡 Consejo: Puedes arrastrar los nombres de un equipo a otro en computadora, o presionar las flechas (⬅️/➡️) en pantallas táctiles para un movimiento al instante." 
+                  {isAdmin
+                    ? "💡 Consejo: Puedes arrastrar los nombres de un equipo a otro en computadora, o presionar las flechas (⬅️/➡️) en pantallas táctiles para un movimiento al instante."
                     : "💡 Los Organizadores pueden iniciar sesión para arrastrar y soltar nombres o balancear los equipos libremente."}
                 </p>
               </div>
             )}
 
-            {/* FULL PLAYER LISTING & ORDER CARDS WITH CONFIRMATION TOGGLES */}
             <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-5 shadow-xl flex flex-col gap-4" id="roster-list-card">
-              
-              {/* Main Lineup list */}
               <div>
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="font-extrabold text-sm text-white flex items-center gap-1.5">
@@ -1428,29 +1356,24 @@ export default function App() {
                     {mainPlayers.map((player, index) => {
                       const isBlueTeam = index % 2 === 0;
                       return (
-                        <div 
-                          key={player.id} 
-                          className={`flex flex-col bg-slate-900 rounded-2xl p-3 border transition-all ${
-                            player.isConfirmed 
-                              ? "border-emerald-500/30 bg-gradient-to-r from-emerald-950/20 to-slate-900" 
-                              : "border-sky-500/20 bg-gradient-to-r from-sky-950/10 to-slate-900"
-                          }`}
+                        <div
+                          key={player.id}
+                          className={`flex flex-col bg-slate-900 rounded-2xl p-3 border transition-all ${player.isConfirmed
+                            ? "border-emerald-500/30 bg-gradient-to-r from-emerald-950/20 to-slate-900"
+                            : "border-sky-500/20 bg-gradient-to-r from-sky-950/10 to-slate-900"
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
-                              {/* Index & Team Jersey styling indicator */}
-                              <div className={`p-2 rounded-lg font-bold text-xs select-none w-8 h-8 flex items-center justify-center border ${
-                                player.isConfirmed
-                                  ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/40"
-                                  : "bg-sky-500/10 text-sky-400 border-sky-500/40"
-                              }`}>
+                              <div className={`p-2 rounded-lg font-bold text-xs select-none w-8 h-8 flex items-center justify-center border ${player.isConfirmed
+                                ? "bg-emerald-500/10 text-emerald-400 border-emerald-500/40"
+                                : "bg-sky-500/10 text-sky-400 border-sky-500/40"
+                                }`}>
                                 {index + 1}
                               </div>
                               <div>
-                                {/* Name coloring logic: green if confirmed, blue if just registered (not confirmed) */}
-                                <p className={`font-extrabold text-sm transition-colors duration-200 ${
-                                  player.isConfirmed ? "text-emerald-400" : "text-sky-400"
-                                }`}>
+                                <p className={`font-extrabold text-sm transition-colors duration-200 ${player.isConfirmed ? "text-emerald-400" : "text-sky-400"
+                                  }`}>
                                   {player.name}
                                 </p>
                                 <p className="text-[10px] text-slate-500">
@@ -1458,14 +1381,12 @@ export default function App() {
                                 </p>
                               </div>
                             </div>
-                            
+
                             <div className="flex items-center gap-2">
-                              {/* Confirmation label banner / pill */}
-                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${
-                                player.isConfirmed 
-                                  ? "bg-emerald-500/20 text-emerald-300" 
-                                  : "bg-sky-500/10 text-sky-400"
-                              }`}>
+                              <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${player.isConfirmed
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-sky-500/10 text-sky-400"
+                                }`}>
                                 {player.isConfirmed ? "Confirmado" : "Inscrito"}
                               </span>
 
@@ -1479,14 +1400,13 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Attendance confirmation toggle (Only displays 48 hours prior to starting) */}
                           <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between">
                             {canConfirmNow ? (
                               <label className="flex items-center gap-2 cursor-pointer w-full group select-none">
                                 <input
                                   type="checkbox"
                                   checked={player.isConfirmed}
-                                  onChange={() => handleToggleConfirmet(player.id, player.isConfirmed)}
+                                  onChange={() => handleToggleConfirmed(player.id, player.isConfirmed)}
                                   className="w-4.5 h-4.5 rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-emerald-500/40 focus:ring-2 focus:ring-offset-0 transition-all cursor-pointer"
                                 />
                                 <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition-colors">
@@ -1506,7 +1426,6 @@ export default function App() {
                 )}
               </div>
 
-              {/* Reserves / Overflow Queue */}
               <div className="border-t border-slate-700/50 pt-4">
                 <div className="flex justify-between items-center mb-3">
                   <h4 className="font-extrabold text-sm text-indigo-400 flex items-center gap-1.5">
@@ -1526,13 +1445,12 @@ export default function App() {
                   <div className="flex flex-col gap-2.5">
                     {reserves.map((player, rIdx) => {
                       return (
-                        <div 
+                        <div
                           key={player.id}
-                          className={`flex flex-col bg-slate-900 rounded-2xl p-3 border transition-all ${
-                            player.isConfirmed 
-                              ? "border-emerald-500/30 bg-gradient-to-r from-emerald-950/10 to-slate-900" 
-                              : "border-sky-500/10 bg-gradient-to-r from-sky-950/10 to-slate-900"
-                          }`}
+                          className={`flex flex-col bg-slate-900 rounded-2xl p-3 border transition-all ${player.isConfirmed
+                            ? "border-emerald-500/30 bg-gradient-to-r from-emerald-950/10 to-slate-900"
+                            : "border-sky-500/10 bg-gradient-to-r from-sky-950/10 to-slate-900"
+                            }`}
                         >
                           <div className="flex items-center justify-between">
                             <div className="flex items-center gap-3">
@@ -1540,24 +1458,22 @@ export default function App() {
                                 R{rIdx + 1}
                               </div>
                               <div>
-                                <p className={`font-extrabold text-sm transition-colors duration-200 ${
-                                  player.isConfirmed ? "text-emerald-400" : "text-sky-400"
-                                }`}>
+                                <p className={`font-extrabold text-sm transition-colors duration-200 ${player.isConfirmed ? "text-emerald-400" : "text-sky-400"
+                                  }`}>
                                   {player.name}
                                 </p>
                                 <p className="text-[10px] text-slate-500 font-medium">Lista de espera</p>
                               </div>
                             </div>
-                            
+
                             <div className="flex items-center gap-2">
-                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${
-                                player.isConfirmed 
-                                  ? "bg-emerald-500/20 text-emerald-300" 
-                                  : "bg-sky-500/10 text-sky-400"
-                              }`}>
+                              <span className={`text-[9px] px-2 py-0.5 rounded-full font-bold uppercase ${player.isConfirmed
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : "bg-sky-500/10 text-sky-400"
+                                }`}>
                                 {player.isConfirmed ? "Conf." : "Inscrito"}
                               </span>
-                              
+
                               <button
                                 onClick={() => handleSignOut(player.id)}
                                 className="p-1.5 text-slate-500 hover:text-rose-400 hover:bg-rose-500/10 rounded-lg transition-all cursor-pointer"
@@ -1567,14 +1483,13 @@ export default function App() {
                             </div>
                           </div>
 
-                          {/* Attendance confirmation toggle for reserve list as well */}
                           <div className="mt-2.5 pt-2 border-t border-slate-800/60 flex items-center justify-between">
                             {canConfirmNow ? (
                               <label className="flex items-center gap-2 cursor-pointer w-full group select-none">
                                 <input
                                   type="checkbox"
                                   checked={player.isConfirmed}
-                                  onChange={() => handleToggleConfirmet(player.id, player.isConfirmed)}
+                                  onChange={() => handleToggleConfirmed(player.id, player.isConfirmed)}
                                   className="w-4.5 h-4.5 rounded border-slate-700 bg-slate-950 text-emerald-500 focus:ring-emerald-500/40 focus:ring-2 focus:ring-offset-0 transition-all cursor-pointer"
                                 />
                                 <span className="text-xs font-semibold text-slate-300 group-hover:text-white transition-colors">
@@ -1593,12 +1508,9 @@ export default function App() {
                   </div>
                 )}
               </div>
-
             </div>
-
           </div>
         )}
-
       </div>
 
       {/* MODAL 1: SCHEDULE NEW MATCH & GENERAL SETTINGS */}
@@ -1611,7 +1523,7 @@ export default function App() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm p-6 shadow-2xl relative"
             >
-              <button 
+              <button
                 onClick={() => setShowConfigModal(false)}
                 className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
               >
@@ -1627,7 +1539,7 @@ export default function App() {
                   <p className="text-xs text-slate-400 mt-1.5 max-w-[240px] leading-relaxed">
                     Introduzca la contraseña de organizador para poder editar, suspender, reactivar o crear convocatorias.
                   </p>
-                  
+
                   <form onSubmit={(e) => {
                     e.preventDefault();
                     const inputPass = (e.currentTarget.elements.namedItem("admin_pass") as HTMLInputElement).value;
@@ -1673,7 +1585,6 @@ export default function App() {
                     </div>
                   </div>
 
-                  {/* Manual match completion for administrators */}
                   {currentMatch && (
                     <div className="mb-5 p-3.5 bg-emerald-500/10 border border-emerald-500/20 rounded-2xl flex flex-col gap-2">
                       <div className="flex items-start gap-2">
@@ -1681,7 +1592,7 @@ export default function App() {
                         <div>
                           <h4 className="font-bold text-xs text-white">¿El partido ya se ha jugado?</h4>
                           <p className="text-[10px] text-slate-400 leading-relaxed mt-0.5">
-                            Uložit zápas do historie a otevřít novou identickou soupisku pro příští týden (+7 dní).
+                            Guarda el partido en el historial y abre una nueva convocatoria idéntica para la próxima semana (+7 días).
                           </p>
                         </div>
                       </div>
@@ -1691,45 +1602,40 @@ export default function App() {
                         disabled={loading}
                         className="w-full py-2.5 mt-1 bg-emerald-500 hover:bg-emerald-600 text-slate-950 font-extrabold text-xs rounded-xl transition-all cursor-pointer shadow-md flex items-center justify-center gap-1.5 active:scale-95"
                       >
-                        🏆 Zápas odehrán
+                        🏆 Partido jugado
                       </button>
                     </div>
                   )}
 
-                  {/* Tab Selection (only visible if there is an active match to edit or suspend) */}
                   {currentMatch && (
                     <div className="flex bg-slate-950 p-1 rounded-xl border border-slate-800/80 text-xs font-semibold mb-5">
                       <button
                         type="button"
                         onClick={() => setAdminTab('edit')}
-                        className={`flex-1 py-1.5 rounded-lg text-center transition-all cursor-pointer ${
-                          adminTab === 'edit' ? "bg-slate-800 text-white font-extrabold" : "text-slate-400 hover:text-slate-200"
-                        }`}
+                        className={`flex-1 py-1.5 rounded-lg text-center transition-all cursor-pointer ${adminTab === 'edit' ? "bg-slate-800 text-white font-extrabold" : "text-slate-400 hover:text-slate-200"
+                          }`}
                       >
                         Editar
                       </button>
                       <button
                         type="button"
                         onClick={() => setAdminTab('new')}
-                        className={`flex-1 py-1.5 rounded-lg text-center transition-all cursor-pointer ${
-                          adminTab === 'new' ? "bg-slate-800 text-white font-extrabold" : "text-slate-400 hover:text-slate-200"
-                        }`}
+                        className={`flex-1 py-1.5 rounded-lg text-center transition-all cursor-pointer ${adminTab === 'new' ? "bg-slate-800 text-white font-extrabold" : "text-slate-400 hover:text-slate-200"
+                          }`}
                       >
                         Nuevo
                       </button>
                       <button
                         type="button"
                         onClick={() => setAdminTab('cancel')}
-                        className={`flex-1 py-1.5 rounded-lg text-center transition-all cursor-pointer ${
-                          adminTab === 'cancel' ? "bg-slate-800 text-white font-extrabold" : "text-slate-400 hover:text-slate-200"
-                        }`}
+                        className={`flex-1 py-1.5 rounded-lg text-center transition-all cursor-pointer ${adminTab === 'cancel' ? "bg-slate-800 text-white font-extrabold" : "text-slate-400 hover:text-slate-200"
+                          }`}
                       >
                         Suspender
                       </button>
                     </div>
                   )}
 
-                  {/* Tab 1: EDIT MATCH DETAILS */}
                   {adminTab === 'edit' && (
                     <form onSubmit={handleEditMatch} className="flex flex-col gap-4">
                       <div>
@@ -1792,7 +1698,7 @@ export default function App() {
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3">
                         <div>
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                             Nombre personalizado (Ej. Barceloneta Futbol)
@@ -1812,7 +1718,7 @@ export default function App() {
                           </label>
                           <input
                             type="text"
-                            placeholder="Ej. 3 EUR platba"
+                            placeholder="Ej. Pago de 3 EUR"
                             value={newSubtitle}
                             onChange={(e) => setNewSubtitle(e.target.value)}
                             className="w-full px-4 py-3 text-sm bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-emerald-500 text-white"
@@ -1879,7 +1785,6 @@ export default function App() {
                     </form>
                   )}
 
-                  {/* Tab 2: CREATE NEW MATCH */}
                   {adminTab === 'new' && (
                     <form onSubmit={handleCreateNewMatch} className="flex flex-col gap-4">
                       <div>
@@ -1942,7 +1847,7 @@ export default function App() {
                         </p>
                       </div>
 
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div className="grid grid-cols-1 gap-3">
                         <div>
                           <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-1.5">
                             Nombre personalizado (Ej. Barceloneta Futbol)
@@ -1962,7 +1867,7 @@ export default function App() {
                           </label>
                           <input
                             type="text"
-                            placeholder="Ej. 3 EUR platba"
+                            placeholder="Ej. Pago de 3 EUR"
                             value={newSubtitle}
                             onChange={(e) => setNewSubtitle(e.target.value)}
                             className="w-full px-4 py-3 text-sm bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-emerald-500 text-white"
@@ -2033,7 +1938,6 @@ export default function App() {
                     </form>
                   )}
 
-                  {/* Tab 3: SUSPEND / RESTORE MATCH */}
                   {adminTab === 'cancel' && currentMatch && (
                     <div className="flex flex-col gap-4">
                       {!currentMatch.isCanceled ? (
@@ -2121,7 +2025,7 @@ export default function App() {
               exit={{ scale: 0.95, opacity: 0 }}
               className="bg-slate-900 border border-slate-800 rounded-3xl w-full max-w-sm max-h-[85vh] p-6 shadow-2xl relative flex flex-col"
             >
-              <button 
+              <button
                 onClick={() => setShowHistoryModal(false)}
                 className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white hover:bg-slate-800 rounded-xl transition-all cursor-pointer"
               >
@@ -2138,7 +2042,6 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Scrollable list content */}
               <div className="flex-1 overflow-y-auto pr-1 flex flex-col gap-4">
                 {state.history.length === 0 ? (
                   <div className="text-center py-12 text-slate-500 text-sm">
@@ -2180,7 +2083,7 @@ export default function App() {
 
                         <div className="text-xs text-slate-400">
                           📍{' '}
-                          <a 
+                          <a
                             href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(pastMatch.location)}`}
                             target="_blank"
                             rel="noopener noreferrer"
@@ -2198,13 +2101,12 @@ export default function App() {
                           </p>
                           <div className="flex flex-wrap gap-1.5">
                             {pastMatch.players.map((p, idx) => (
-                              <span 
-                                key={p.id} 
-                                className={`text-[10px] border px-2 py-1 rounded ${
-                                  p.isConfirmed 
-                                    ? "bg-emerald-950/40 text-emerald-300 border-emerald-800" 
-                                    : "bg-slate-900 text-slate-300 border-slate-800"
-                                }`}
+                              <span
+                                key={p.id}
+                                className={`text-[10px] border px-2 py-1 rounded ${p.isConfirmed
+                                  ? "bg-emerald-950/40 text-emerald-300 border-emerald-800"
+                                  : "bg-slate-900 text-slate-300 border-slate-800"
+                                  }`}
                               >
                                 {idx + 1}. {p.name}
                               </span>
@@ -2228,156 +2130,63 @@ export default function App() {
                   Cerrar Historial
                 </button>
               </div>
-
             </motion.div>
           </div>
         )}
       </AnimatePresence>
-
     </div>
   );
 }
 
-// Reusable Football Kit component
 function FootballKit({ isDark, slotNum }: { isDark: boolean; slotNum: number }) {
-  const shirtFill = isDark ? "#000000" : "#ffffff"; // Pure black or pure white
+  const shirtFill = isDark ? "#000000" : "#ffffff";
   const shortsFill = isDark ? "#000000" : "#ffffff";
-  const strokeColor = isDark ? "#ffffff" : "#000000"; // White outline for black jersey, black outline for white jersey
-  const detailsColor = isDark ? "#ffffff" : "#cccccc"; // White sleeve stripes / details for black jersey, light gray for white
-  const numberColor = isDark ? "#ffffff" : "#000000"; // White jersey number for black jersey, black/dark for white
-  
+  const strokeColor = isDark ? "#ffffff" : "#000000";
+  const detailsColor = isDark ? "#ffffff" : "#cccccc";
+  const numberColor = isDark ? "#ffffff" : "#000000";
+
   return (
-    <svg 
-      viewBox="0 0 64 64" 
+    <svg
+      viewBox="0 0 64 64"
       className="w-8 h-8 min-[360px]:w-10 min-[360px]:h-10 min-[400px]:w-11 min-[400px]:h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 filter drop-shadow-[0_2px_4px_rgba(0,0,0,0.4)]"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* SHIRT/JERSEY */}
-      {/* Left sleeve */}
-      <path
-        d="M 18,14 L 6,24 L 12,30 L 20,24 Z"
-        fill={shirtFill}
-        stroke={strokeColor}
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      {/* Right sleeve */}
-      <path
-        d="M 46,14 L 58,24 L 52,30 L 44,24 Z"
-        fill={shirtFill}
-        stroke={strokeColor}
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      
-      {/* Shirt Torso */}
-      <path
-        d="M 20,14 L 26,10 A 6,6 0 0,0 38,10 L 44,14 L 44,38 L 20,38 Z"
-        fill={shirtFill}
-        stroke={strokeColor}
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      
-      {/* Sleeve stripes / details */}
+      <path d="M 18,14 L 6,24 L 12,30 L 20,24 Z" fill={shirtFill} stroke={strokeColor} strokeWidth="3" strokeLinejoin="round" />
+      <path d="M 46,14 L 58,24 L 52,30 L 44,24 Z" fill={shirtFill} stroke={strokeColor} strokeWidth="3" strokeLinejoin="round" />
+      <path d="M 20,14 L 26,10 A 6,6 0 0,0 38,10 L 44,14 L 44,38 L 20,38 Z" fill={shirtFill} stroke={strokeColor} strokeWidth="3" strokeLinejoin="round" />
       <path d="M 8,22 L 14,28" stroke={detailsColor} strokeWidth="2" />
       <path d="M 56,22 L 50,28" stroke={detailsColor} strokeWidth="2" />
-      
-      {/* Collar trim */}
       <path d="M 26,10 A 6,6 0 0,0 38,10" fill="none" stroke={detailsColor} strokeWidth="2" />
-
-      {/* SHORTS */}
-      {/* Shorts main body */}
-      <path
-        d="M 22,40 L 42,40 L 42,53 L 33,53 L 32,47 L 31,53 L 22,53 Z"
-        fill={shortsFill}
-        stroke={strokeColor}
-        strokeWidth="3"
-        strokeLinejoin="round"
-      />
-      {/* Waistband line */}
+      <path d="M 22,40 L 42,40 L 42,53 L 33,53 L 32,47 L 31,53 L 22,53 Z" fill={shortsFill} stroke={strokeColor} strokeWidth="3" strokeLinejoin="round" />
       <line x1="22" y1="42" x2="42" y2="42" stroke={strokeColor} strokeWidth="2.5" />
-      
-      {/* Side stripes on shorts */}
       <line x1="23.5" y1="42" x2="23.5" y2="52" stroke={detailsColor} strokeWidth="1.5" />
       <line x1="40.5" y1="42" x2="40.5" y2="52" stroke={detailsColor} strokeWidth="1.5" />
-
-      {/* Jersey Number printed on the shirt */}
-      <text
-        x="32"
-        y="28"
-        textAnchor="middle"
-        dominantBaseline="middle"
-        fill={numberColor}
-        fontSize="14"
-        fontWeight="900"
-        fontFamily="sans-serif"
-      >
+      <text x="32" y="28" textAnchor="middle" dominantBaseline="middle" fill={numberColor} fontSize="14" fontWeight="900" fontFamily="sans-serif">
         {slotNum}
       </text>
     </svg>
   );
 }
 
-// Reusable Football Kit Placeholder component
 function FootballKitPlaceholder({ isDark }: { isDark: boolean }) {
   const strokeColor = isDark ? "rgba(255,255,255,0.35)" : "rgba(0,0,0,0.35)";
   const plusColor = isDark ? "rgba(255,255,255,0.5)" : "rgba(0,0,0,0.5)";
-  
+
   return (
-    <svg 
-      viewBox="0 0 64 64" 
+    <svg
+      viewBox="0 0 64 64"
       className="w-8 h-8 min-[360px]:w-10 min-[360px]:h-10 min-[400px]:w-11 min-[400px]:h-11 sm:w-14 sm:h-14 md:w-16 md:h-16 transition-all"
       xmlns="http://www.w3.org/2000/svg"
     >
-      {/* SHIRT/JERSEY Outline */}
-      <path
-        d="M 18,14 L 6,24 L 12,30 L 20,24 Z"
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="2.5"
-        strokeDasharray="3,3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M 46,14 L 58,24 L 52,30 L 44,24 Z"
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="2.5"
-        strokeDasharray="3,3"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M 20,14 L 26,10 A 6,6 0 0,0 38,10 L 44,14 L 44,38 L 20,38 Z"
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="2.5"
-        strokeDasharray="3,3"
-        strokeLinejoin="round"
-      />
-      
-      {/* SHORTS Outline */}
-      <path
-        d="M 22,40 L 42,40 L 42,53 L 33,53 L 32,47 L 31,53 L 22,53 Z"
-        fill="none"
-        stroke={strokeColor}
-        strokeWidth="2.5"
-        strokeDasharray="3,3"
-        strokeLinejoin="round"
-      />
-
-      {/* Plus sign */}
-      <path
-        d="M 28,26 L 36,26 M 32,22 L 32,30"
-        stroke={plusColor}
-        strokeWidth="4"
-        strokeLinecap="round"
-      />
+      <path d="M 18,14 L 6,24 L 12,30 L 20,24 Z" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeDasharray="3,3" strokeLinejoin="round" />
+      <path d="M 46,14 L 58,24 L 52,30 L 44,24 Z" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeDasharray="3,3" strokeLinejoin="round" />
+      <path d="M 20,14 L 26,10 A 6,6 0 0,0 38,10 L 44,14 L 44,38 L 20,38 Z" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeDasharray="3,3" strokeLinejoin="round" />
+      <path d="M 22,40 L 42,40 L 42,53 L 33,53 L 32,47 L 31,53 L 22,53 Z" fill="none" stroke={strokeColor} strokeWidth="2.5" strokeDasharray="3,3" strokeLinejoin="round" />
+      <path d="M 28,26 L 36,26 M 32,22 L 32,30" stroke={plusColor} strokeWidth="4" strokeLinecap="round" />
     </svg>
   );
 }
 
-// Reusable slot bubble component
 interface PlayerBubbleProps {
   player: Player | null;
   slotNum: number;
@@ -2387,36 +2196,28 @@ interface PlayerBubbleProps {
 }
 
 function PlayerBubble({ player, slotNum, teamColor, onJoin, onLeave }: PlayerBubbleProps) {
-  const isDark = teamColor === "red"; // Left side (blue) is White/Claros, Right side (red) is Black/Oscuros
-  
+  const isDark = teamColor === "red";
+
   return (
     <div className="flex flex-col items-center justify-center gap-1.5 w-[46px] min-[360px]:w-[54px] min-[400px]:w-[64px] sm:w-[76px] md:w-[84px]">
-      
       {player ? (
-        // Occupied Slot
         <button
           onClick={() => onLeave(player.id)}
           className="relative group transition-all transform hover:scale-110 active:scale-95 cursor-pointer focus:outline-none flex flex-col items-center justify-center"
           title={`Dar de baja a ${player.name}`}
         >
-          {/* Football Kit component (Left side is Claros (White), Right side is Oscuros (Black)) */}
           <FootballKit isDark={isDark} slotNum={slotNum} />
-
-          {/* Badge indicator on the kit (green dot/ring if confirmed, sky blue if registered) */}
           <div className="absolute -top-1 -right-0.5 sm:-right-1">
             <span className="flex h-3 w-3 sm:h-4 sm:w-4 relative">
               <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${player.isConfirmed ? "bg-emerald-400" : "bg-sky-400"}`}></span>
               <span className={`relative inline-flex rounded-full h-3 w-3 sm:h-4 sm:w-4 border-2 border-slate-900 ${player.isConfirmed ? "bg-emerald-500" : "bg-sky-500"}`}></span>
             </span>
           </div>
-
-          {/* Hover overlay text "Baja" */}
           <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150 bg-slate-950/85 rounded-xl text-[7px] sm:text-[10px] text-rose-400 font-extrabold shadow-md border border-rose-500/30 px-1 py-0.5">
             BAJA
           </div>
         </button>
       ) : (
-        // Free Slot
         <button
           onClick={onJoin}
           className="relative group transition-all transform hover:scale-115 active:scale-90 cursor-pointer focus:outline-none flex flex-col items-center justify-center"
@@ -2426,19 +2227,16 @@ function PlayerBubble({ player, slotNum, teamColor, onJoin, onLeave }: PlayerBub
         </button>
       )}
 
-      {/* Player display label text - larger, bold font, solid bright background for highest legibility and contrast */}
-      <span 
-        className={`text-[9px] min-[360px]:text-[11px] min-[400px]:text-[12px] sm:text-[13px] md:text-[14px] font-black max-w-[46px] min-[360px]:max-w-[54px] min-[400px]:max-w-[64px] sm:max-w-[76px] md:max-w-[84px] truncate text-center px-1.5 py-0.5 rounded shadow-md border uppercase tracking-wide ${
-          player 
-            ? (player.isConfirmed 
-                ? "text-slate-950 bg-emerald-400 border-emerald-300 font-extrabold" 
-                : "text-slate-950 bg-sky-300 border-sky-200 font-extrabold") 
-            : "text-white/60 bg-slate-900/40 border-transparent font-medium"
-        }`}
+      <span
+        className={`text-[9px] min-[360px]:text-[11px] min-[400px]:text-[12px] sm:text-[13px] md:text-[14px] font-black max-w-[46px] min-[360px]:max-w-[54px] min-[400px]:max-w-[64px] sm:max-w-[76px] md:max-w-[84px] truncate text-center px-1.5 py-0.5 rounded shadow-md border uppercase tracking-wide ${player
+          ? (player.isConfirmed
+            ? "text-slate-950 bg-emerald-400 border-emerald-300 font-extrabold"
+            : "text-slate-950 bg-sky-300 border-sky-200 font-extrabold")
+          : "text-white/60 bg-slate-900/40 border-transparent font-medium"
+          }`}
       >
         {player ? player.name.split(" ")[0] : "Vacío"}
       </span>
-
     </div>
   );
 }
