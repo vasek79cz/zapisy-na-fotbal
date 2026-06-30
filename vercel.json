@@ -1,1 +1,23 @@
-{ "functions": { "api/server.js": { "runtime": "nodejs20.x" } }, "rewrites": [{ "source": "/api/(.*)", "destination": "/api/server" }] }
+{
+    "version": 2,
+    "builds": [
+        {
+            "src": "api/football/match.ts",
+            "use": "@vercel/node"
+        },
+        {
+            "src": "package.json",
+            "use": "@vercel/static-build"
+        }
+    ],
+    "routes": [
+        {
+            "src": "/api/football/match",
+            "dest": "api/football/match.ts"
+        },
+        {
+            "src": "/(.*)",
+            "dest": "/$1"
+        }
+    ]
+}
