@@ -35,9 +35,6 @@
     "typescript": "~5.8.2",
     "vite": "^6.2.3"
   },
-  "optionalDependencies": {
-    "@rollup/rollup-linux-x64-gnu": "^4.62.2"
-  },
   "supportedArchitectures": {
     "os": [
       "current",
