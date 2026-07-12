@@ -10,6 +10,7 @@ interface MatchSettingsProps {
   setShowHistoryModal: (show: boolean) => void;
   isAdmin: boolean;
   setIsAdmin: (admin: boolean) => void;
+  adminLogin: () => Promise<boolean>;
   currentMatch: Match | null;
   loading: boolean;
   history: Match[];
@@ -47,6 +48,7 @@ export default function MatchSettings({
   setShowHistoryModal,
   isAdmin,
   setIsAdmin,
+  adminLogin,
   currentMatch,
   loading,
   history,
@@ -106,13 +108,16 @@ export default function MatchSettings({
                   </p>
 
                   <form
-                    onSubmit={(e) => {
+                    onSubmit={async (e) => {
                       e.preventDefault();
-                      const inputPass = (e.currentTarget.elements.namedItem("admin_pass") as HTMLInputElement).value;
-                      if (inputPass === "Barceloneta") {
-                        setIsAdmin(true);
-                        localStorage.setItem("football_is_admin", "true");
-                      } else {
+
+                      const inputPass = (
+                        e.currentTarget.elements.namedItem("admin_pass") as HTMLInputElement
+                      ).value;
+
+                      const success = await adminLogin();
+
+                      if (!success) {
                         alert("Contraseña incorrecta. Solo los administradores pueden realizar cambios.");
                       }
                     }}

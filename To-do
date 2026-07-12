@@ -1,1 +1,16 @@
-
+	1. Správa a nastavení zápasu (Administrace)
+    •       Editace názvu/jména zápasu: Možnost pojmenovat konkrétní zápas (např. „Středeční turnaj v hale“, „Páteční klasika na umělce“).
+    •       Nastavení kapacity (Počet hráčů): Volba maximálního počtu účastníků pro daný zápas (např. limit 10, 12 nebo 14 hráčů). Jakmile se kapacita naplní, aplikace uzavře běžné zápisy. Pro dalsi rozsireni, lze nastavit 2 az 50 hracu (pro dalsi aktivity a sporty)
+    •       Formát hry (Kolik proti kolika): Definice herního systému (např. 4vs4, 5vs5, 6vs6), podle kterého se následně může odvíjet optimální počet hráčů a sestavování týmů. Vzdy  sudy pocet hracu.pro dalsi mozne aktivity a sporty...napr. ftobal az 22 hracu.
+    •       Termín a místo: Možnost nastavit datum, čas výkopu a název hřiště/haly. Misto mozne zobrazit pres proklik na google maps.
+    2. Systém zápisů a registrace hráčů (Pro uživatele)
+    •       Přihlášení na zápas: Jednoduché tlačítko pro zapsání se na seznam hráčů (vložení jména/přezdívky).
+    •       Odhlášení ze zápasu: Možnost smazat se ze seznamu, pokud hráč nakonec nemůže dorazit.
+    •       Seznam náhradníků (Waiting List): Pokud je kapacita zápasu naplněna (např. je plno 5vs5 = 10 lidí), další přihlášení uživatelé automaticky padají do sekce „Náhradníci“. Pokud se někdo z hlavní sestavy odhlásí, první náhradník se posune na jeho místo.
+    3. Generátor týmů a herní logika (Volitelné / Rozšířené)
+    •       Rozřazení do týmů: Funkce, která přihlášené hráče dokáže (buď náhodně, nebo podle pozic/výkonnosti) rozdělit do vyvážených týmů (např. Tým A a Tým B) na základě nastaveného formátu (např. 5vs5). Pokud se hrac registruje, jako dalsi funkcionalita, tak by mohl mit napr. tri stupne kvality, nizka, stredeni, vysoka kvalita. Generator pak muze sparovat stejne urovne. tedy na kazde strane podobny pocet hracu stejne urovne. Tymy se jmenuji Blancos a Negros. Idealne zobrazovat barvu dresu a trenyrek v bile resp. cerne barve.
+    •       Indikátor stavu naplnění: Grafický ukazatel (progress bar), který vizuálně zobrazuje, z kolika procent je zápas aktuálně zaplněn (např. 8 / 10 hráčů přihlášeno).
+    - Vyvoj jazyku idealne ve spanelstine, mozne rozsireni v budoucnu o dalsi jazyky /AJ, CJ/
+    - Budouci moznost prevest do apk resp. ios instal. souboru
+    - Moznost platby jako kreditu pro kazdeho reg. hrace a placeni pres platebni kartu.
+    - Business model bude dale promyslen, ale je mozna procento z kazde platby hrace. tedy kdyz bude napr. stanovena platba 5 eur za hrace, tak kazdemu hraci se prirazi 5% a to se odecte z kreditu.

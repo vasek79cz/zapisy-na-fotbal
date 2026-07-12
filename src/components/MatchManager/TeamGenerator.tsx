@@ -7,6 +7,7 @@ interface TeamGeneratorProps {
   savedName: string;
   isAdmin: boolean;
   setIsAdmin: (admin: boolean) => void;
+  adminLogin: () => Promise<boolean>;
   handleAssignPlayerTeam: (playerId: string, team: "A" | "B" | null) => void;
   handleRandomizeTeams: () => void;
   handleResetTeams: () => void;
@@ -21,6 +22,7 @@ export default function TeamGenerator({
   savedName,
   isAdmin,
   setIsAdmin,
+  adminLogin,
   handleAssignPlayerTeam,
   handleRandomizeTeams,
   handleResetTeams,
@@ -281,33 +283,15 @@ export default function TeamGenerator({
                   <p className="text-[10px] sm:text-[11px] text-slate-400 leading-tight">Debes iniciar sesión para editar, mezclar o arrastrar los equipos.</p>
                 </div>
               </div>
-              <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const input = e.currentTarget.elements.namedItem("team_admin_pass") as HTMLInputElement;
-                  if (input.value === "Barceloneta") {
-                    setIsAdmin(true);
-                    localStorage.setItem("football_is_admin", "true");
-                    alert("¡Acceso de Organizador concedido! Ya puedes editar los equipos.");
-                  } else {
-                    alert("Contraseña incorrecta. Inténtalo de nuevo.");
-                  }
+              <button
+                type="button"
+                onClick={async () => {
+                  await adminLogin();
                 }}
-                className="flex items-center gap-1.5 w-full sm:w-auto"
+                className="px-3.5 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl transition-all cursor-pointer active:scale-95 whitespace-nowrap"
               >
-                <input
-                  name="team_admin_pass"
-                  type="password"
-                  placeholder="Contraseña..."
-                  className="flex-1 sm:w-36 px-3 py-1.5 text-xs bg-slate-950 border border-slate-800 rounded-xl focus:outline-none focus:border-emerald-500 text-white font-mono"
-                />
-                <button
-                  type="submit"
-                  className="px-3.5 py-1.5 text-xs font-bold text-slate-950 bg-emerald-400 hover:bg-emerald-300 rounded-xl transition-all cursor-pointer active:scale-95 whitespace-nowrap"
-                >
-                  Entrar
-                </button>
-              </form>
+                Entrar
+              </button>
             </div>
           ) : (
             <div className="flex items-center justify-between bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2 rounded-2xl">
@@ -319,7 +303,7 @@ export default function TeamGenerator({
                 type="button"
                 onClick={() => {
                   setIsAdmin(false);
-                  localStorage.removeItem("football_is_admin");
+                  localStorage.removeItem("football_admin_token");
                 }}
                 className="text-[10px] text-slate-400 hover:text-slate-200 underline cursor-pointer bg-transparent border-none"
               >
