@@ -1,6 +1,8 @@
 import express from "express";
 import path from "path";
 import fs from "fs";
+import crypto from "crypto";
+import "dotenv/config";
 import { createServer as createViteServer } from "vite";
 import { Match, Player, SoccerAppState } from "../../src/types";
 import { Redis } from "@upstash/redis";
@@ -10,6 +12,46 @@ const PORT = 3000;
 const STATE_FILE_PATH = path.join(process.cwd(), "football_state.json");
 
 app.use(express.json());
+
+const adminTokens = new Set<string>();
+
+app.post("/api/football/admin/login", (req, res) => {
+  const { password } = req.body;
+
+  if (!password || password !== process.env.ADMIN_PASSWORD) {
+    return res.status(401).json({
+      error: "Contraseña incorrecta"
+    });
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+
+  adminTokens.add(token);
+
+  res.json({
+    token
+  });
+});
+
+function requireAdmin(req, res, next) {
+  const auth = req.headers.authorization;
+
+  if (!auth || !auth.startsWith("Bearer ")) {
+    return res.status(401).json({
+      error: "No autorizado"
+    });
+  }
+
+  const token = auth.replace("Bearer ", "");
+
+  if (!adminTokens.has(token)) {
+    return res.status(401).json({
+      error: "Token inválido"
+    });
+  }
+
+  next();
+}
 
 // Initialize Redis client if configuration exists
 let redis: Redis | null = null;
@@ -144,7 +186,7 @@ app.get("/api/football/match", async (req, res) => {
 });
 
 // Configure existing match size (5v5=10 vs 6v6=12)
-app.post("/api/football/match/config", async (req, res) => {
+app.post("/api/football/match/config", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   const { maxPlayers } = req.body;
 
@@ -231,7 +273,7 @@ app.post("/api/football/match/signout", async (req, res) => {
 });
 
 // Create/schedule a brand new match manually
-app.post("/api/football/match/new", async (req, res) => {
+app.post("/api/football/match/new", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   const { date, time, location, maxPlayers, title, subtitle, avatarUrl } = req.body;
 
@@ -269,7 +311,7 @@ app.post("/api/football/match/new", async (req, res) => {
 });
 
 // Edit active match details
-app.post("/api/football/match/edit", async (req, res) => {
+app.post("/api/football/match/edit", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   const { date, time, location, maxPlayers, title, subtitle, avatarUrl } = req.body;
 
@@ -304,7 +346,7 @@ app.post("/api/football/match/edit", async (req, res) => {
 });
 
 // Cancel active match
-app.post("/api/football/match/cancel", async (req, res) => {
+app.post("/api/football/match/cancel", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   const { reason } = req.body;
 
@@ -320,7 +362,7 @@ app.post("/api/football/match/cancel", async (req, res) => {
 });
 
 // Restore active match from cancel state
-app.post("/api/football/match/restore", async (req, res) => {
+app.post("/api/football/match/restore", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   if (!state.currentMatch) {
     return res.status(404).json({ error: "No hay partido activo para restaurar." });
@@ -334,7 +376,7 @@ app.post("/api/football/match/restore", async (req, res) => {
 });
 
 // Mark match as played, archive it, and schedule next match +7 days
-app.post("/api/football/match/complete", async (req, res) => {
+app.post("/api/football/match/complete", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   if (!state.currentMatch) {
     return res.status(404).json({ error: "No hay partido activo para finalizar." });
@@ -394,7 +436,7 @@ app.post("/api/football/match/confirm", async (req, res) => {
 });
 
 // Assign player to manual team (A or B)
-app.post("/api/football/match/team", async (req, res) => {
+app.post("/api/football/match/team", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   const { playerId, team } = req.body;
 
@@ -425,7 +467,7 @@ app.post("/api/football/match/team", async (req, res) => {
 });
 
 // Randomize or shuffle teams of current match (for main players)
-app.post("/api/football/match/teams/randomize", async (req, res) => {
+app.post("/api/football/match/teams/randomize", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   if (!state.currentMatch) {
     return res.status(404).json({ error: "El partido no existe." });
@@ -447,7 +489,7 @@ app.post("/api/football/match/teams/randomize", async (req, res) => {
 });
 
 // Reset manual teams to auto alternation
-app.post("/api/football/match/teams/reset", async (req, res) => {
+app.post("/api/football/match/teams/reset", requireAdmin, async (req, res) => {
   const state = await getLatestState();
   if (!state.currentMatch) {
     return res.status(404).json({ error: "El partido no existe." });

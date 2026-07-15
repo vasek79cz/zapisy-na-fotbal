@@ -31,28 +31,58 @@ export default function MatchManager() {
 
   // Admin / Organizer Access State
   const [isAdmin, setIsAdmin] = useState<boolean>(() => {
-    return localStorage.getItem("football_is_admin") === "true";
+    return !!localStorage.getItem("football_admin_token");
   });
 
-  const ensureAdmin = (): boolean => {
-    if (isAdmin) return true;
-    const pass = prompt("Introduzca la contraseña de Organizador para realizar esta acción:");
-    if (pass === "Barceloneta") {
-      setIsAdmin(true);
-      localStorage.setItem("football_is_admin", "true");
-      alert("¡Acceso de Organizador concedido!");
-      return true;
-    } else {
-      if (pass !== null) {
-        alert("Contraseña incorrecta. Acceso denegado.");
+  const adminLogin = async (): Promise<boolean> => {
+    const pass = prompt("Introduzca la contraseña de Organizador:");
+
+    if (!pass) return false;
+
+    try {
+      const res = await fetch("/api/football/admin/login", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          password: pass
+        })
+      });
+
+      if (!res.ok) {
+        alert("Contraseña incorrecta.");
+        return false;
       }
+
+      const data = await res.json();
+
+      localStorage.setItem(
+        "football_admin_token",
+        data.token
+      );
+
+      setIsAdmin(true);
+
+      alert("¡Acceso de Organizador concedido!");
+
+      return true;
+
+    } catch (err) {
+      alert("Error de conexión con el servidor.");
       return false;
     }
   };
 
+  const ensureAdmin = async (): Promise<boolean> => {
+    if (isAdmin) return true;
+
+    return await adminLogin();
+  };
+
   const handleAdminLogout = () => {
     setIsAdmin(false);
-    localStorage.removeItem("football_is_admin");
+    localStorage.removeItem("football_admin_token");
     alert("Sesión de Organizador cerrada.");
   };
 
@@ -111,7 +141,7 @@ export default function MatchManager() {
         setAdminTab('new');
       }
     }
-  }, [showConfigModal, state.currentMatch]);
+  }, [showConfigModal]);
 
   // Confetti / Celebration Trigger
   const [showCelebration, setShowCelebration] = useState<boolean>(false);
@@ -120,9 +150,24 @@ export default function MatchManager() {
   const [draggedPlayerId, setDraggedPlayerId] = useState<string | null>(null);
 
   // Helper for making robust API requests
-  const safeFetchJson = async (url: string, options?: RequestInit) => {
+  const safeFetchJson = async (url: string, options: RequestInit = {}) => {
     try {
-      const res = await fetch(url, options);
+      const token = localStorage.getItem("football_admin_token");
+
+      const headers = {
+        ...(options.headers || {}),
+        ...(token
+          ? {
+              Authorization: `Bearer ${token}`
+            }
+          : {})
+      };
+
+      const res = await fetch(url, {
+        ...options,
+        headers
+      });
+
       const contentType = res.headers.get("content-type");
 
       if (!res.ok) {
@@ -139,6 +184,7 @@ export default function MatchManager() {
       }
 
       return await res.json();
+
     } catch (err: any) {
       if (err.message && err.message.includes("Failed to fetch")) {
         throw new Error("No se pudo conectar con el servidor. Verifique su conexión o espere a que el servidor termine de iniciarse.");
@@ -216,13 +262,12 @@ export default function MatchManager() {
 
     const isSelf = savedName && playerToRemove.name.trim().toLowerCase() === savedName.trim().toLowerCase();
     if (!isSelf && !isAdmin) {
-      const pass = prompt("Introduzca la contraseña de Organizador para dar de baja a otro jugador:");
-      if (pass !== "Barceloneta") {
-        alert("Contraseña incorrecta. Solo el propio jugador o un Organizador puede dar de baja a este participante.");
+      const ok = await adminLogin();
+
+      if (!ok) {
+        alert("Solo el propio jugador o un Organizador puede dar de baja a este participante.");
         return;
       }
-      setIsAdmin(true);
-      localStorage.setItem("football_is_admin", "true");
     }
 
     if (!confirm(`¿De verdad quieres dar de baja a ${playerToRemove.name}?`)) return;
@@ -249,13 +294,12 @@ export default function MatchManager() {
 
     const isSelf = savedName && playerToToggle.name.trim().toLowerCase() === savedName.trim().toLowerCase();
     if (!isSelf && !isAdmin) {
-      const pass = prompt("Introduzca la contraseña de Organizador para modificar la asistencia de otro jugador:");
-      if (pass !== "Barceloneta") {
-        alert("Contraseña incorrecta. Solo el propio jugador o un Organizador puede confirmar esta asistencia.");
+      const ok = await adminLogin();
+
+      if (!ok) {
+        alert("Solo el propio jugador o un Organizador puede confirmar esta asistencia.");
         return;
       }
-      setIsAdmin(true);
-      localStorage.setItem("football_is_admin", "true");
     }
 
     try {
@@ -276,7 +320,7 @@ export default function MatchManager() {
 
   // Handle manual team assignment (A/B or null)
   const handleAssignPlayerTeam = async (playerId: string, team: "A" | "B" | null) => {
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     try {
       setLoading(true);
       const data = await safeFetchJson("/api/football/match/team", {
@@ -295,7 +339,7 @@ export default function MatchManager() {
 
   // Handle shuffling teams randomly
   const handleRandomizeTeams = async () => {
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     try {
       setLoading(true);
       const data = await safeFetchJson("/api/football/match/teams/randomize", {
@@ -313,7 +357,7 @@ export default function MatchManager() {
 
   // Handle resetting manual teams back to alternating default
   const handleResetTeams = async () => {
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     try {
       setLoading(true);
       const data = await safeFetchJson("/api/football/match/teams/reset", {
@@ -331,7 +375,7 @@ export default function MatchManager() {
 
   // Toggle match configuration directly (5v5 vs 6v6)
   const handleToggleConfig = async (limit: number) => {
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     try {
       setLoading(true);
       const data = await safeFetchJson("/api/football/match/config", {
@@ -350,7 +394,7 @@ export default function MatchManager() {
   // Create a brand new match manually
   const handleCreateNewMatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     if (!newDate || !newTime || !newLocation) {
       alert("Por favor, rellene todos los campos.");
       return;
@@ -394,7 +438,7 @@ export default function MatchManager() {
   // Edit the current active match
   const handleEditMatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     if (!newDate || !newTime || !newLocation) {
       alert("Por favor, rellene todos los campos.");
       return;
@@ -429,7 +473,7 @@ export default function MatchManager() {
   // Cancel the current active match
   const handleCancelMatch = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     try {
       setLoading(true);
       const data = await safeFetchJson("/api/football/match/cancel", {
@@ -450,7 +494,7 @@ export default function MatchManager() {
 
   // Restore/uncancel the match
   const handleRestoreMatch = async () => {
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     try {
       setLoading(true);
       const data = await safeFetchJson("/api/football/match/restore", {
@@ -470,7 +514,7 @@ export default function MatchManager() {
 
   // Complete match manually, archiving it and opening the next match +7 days
   const handleCompleteMatch = async () => {
-    if (!ensureAdmin()) return;
+    if (!(await ensureAdmin())) return;
     if (!confirm("¿Estás seguro de que deseas marcar el partido actual como JUGADO? Esto lo moverá al historial y creará automáticamente una nueva convocatoria para la próxima semana (+7 días) con el mismo horario y lugar.")) {
       return;
     }
@@ -636,14 +680,7 @@ export default function MatchManager() {
           ) : (
             <button
               onClick={() => {
-                const pass = prompt("Introduzca la contraseña de Organizador:");
-                if (pass === "Barceloneta") {
-                  setIsAdmin(true);
-                  localStorage.setItem("football_is_admin", "true");
-                  alert("¡Acceso de Organizador concedido!");
-                } else if (pass !== null) {
-                  alert("Contraseña incorrecta.");
-                }
+                adminLogin();
               }}
               className="px-2.5 py-1.5 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 font-extrabold rounded-xl transition-all border border-emerald-500/20 cursor-pointer active:scale-95 flex items-center gap-1 text-[10px]"
             >
@@ -887,6 +924,7 @@ export default function MatchManager() {
               savedName={savedName}
               isAdmin={isAdmin}
               setIsAdmin={setIsAdmin}
+              adminLogin={adminLogin}
               handleAssignPlayerTeam={handleAssignPlayerTeam}
               handleRandomizeTeams={handleRandomizeTeams}
               handleResetTeams={handleResetTeams}
@@ -915,6 +953,7 @@ export default function MatchManager() {
         setShowHistoryModal={setShowHistoryModal}
         isAdmin={isAdmin}
         setIsAdmin={setIsAdmin}
+        adminLogin={adminLogin}
         currentMatch={currentMatch}
         loading={loading}
         history={state.history}
